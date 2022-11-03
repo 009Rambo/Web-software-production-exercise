@@ -15,14 +15,14 @@ test:
     # Go to api directory
     - cd api
     # Run npm commands
-    - npm install && npm test && npm audit
+    - npm install && npm test
     # Go to webapp directory
     - cd ../webapp
     # Remove package-lock.json because of a bug
     # (https://stackoverflow.com/questions/63321707/react-npm-install-fails)
     - rm package-lock.json
     # Run npm commands
-    - npm install && npm test && npm audit
+    - npm install && npm test
 
 build:
   image: docker:latest
