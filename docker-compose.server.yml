@@ -3,14 +3,14 @@ services:
   webapp:
     image: ${WEBAPP_IMAGE}
     ports:
-      - "8080:3000"
+      - "80:3000"
     env_file:
       - .env
     restart: always
   api:
     image: ${API_IMAGE}
     ports:
-      - "5050:5000"
+      - "5000:5000"
     env_file:
       - .env
     restart: always
