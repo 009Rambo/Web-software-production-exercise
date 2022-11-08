@@ -103,3 +103,31 @@ deploy:
             "
   only:
     - main
+
+
+deploy_production:
+  image: alpine:latest
+  stage: deploy
+  script:
+    - apk update && apk add rsync openssh curl
+    # Prepare SSH settings
+    - mkdir -p ~/.ssh && (umask  077 ; echo "${DEPLOY_KEY_PRIVATE}" | base64 -d > ~/.ssh/id_rsa)
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    # Prepare files for transfer
+    - mkdir remote_dir
+    - cp docker-compose.server.yml remote_dir/docker-compose.yml
+    - echo "API_IMAGE=${API_IMAGE}" >> remote_dir/.env
+    - echo "WEBAPP_IMAGE=${WEBAPP_IMAGE}" >> remote_dir/.env
+    # Transfer to server
+    - rsync -r remote_dir "${REMOTE_HOST}:./"
+    # Run commands on the server
+    - ssh ${REMOTE_HOST} /bin/bash 
+            "
+            echo 'Starting..';
+            cd ~/remote_dir;
+            docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY;
+            docker-compose pull;
+            docker-compose up -d;
+            "
+  only:
+    - production
