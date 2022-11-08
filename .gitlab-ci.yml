@@ -1,7 +1,9 @@
 variables:
   REMOTE_HOST: deploy@172.16.7.123
   API_IMAGE: ${CI_REGISTRY_IMAGE}/api
+  API_RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}/api:release
   WEBAPP_IMAGE: ${CI_REGISTRY_IMAGE}/webapp
+  WEBAPP_RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}/webapp:release
 
 stages:
   - test
@@ -45,7 +47,7 @@ test_main:
     - npm install && npm test
   only: 
     - main
-
+    - production
 
 
 build:
@@ -60,6 +62,7 @@ build:
     - docker build -f webapp/DockerfileServer -t "${WEBAPP_IMAGE}" .
   except:
     - main
+    - production
     
 build_main:
   image: docker:latest
@@ -76,6 +79,23 @@ build_main:
     - docker push "${WEBAPP_IMAGE}"
   only: 
     - main
+
+
+build_production:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    # Build & push API
+    - docker build -f api/DockerfileServer -t "${API_RELEASE_IMAGE}" .
+    - docker push "${API_RELEASE_IMAGE}"
+    # Build & push Webapp
+    - docker build -f webapp/DockerfileServer -t "${WEBAPP_RELEASE_IMAGE}" .
+    - docker push "${WEBAPP_RELEASE_IMAGE}"
+  only:
+    - production
 
 deploy:
   image: alpine:latest
@@ -103,3 +123,31 @@ deploy:
             "
   only:
     - main
+
+
+deploy_production:
+  image: alpine:latest
+  stage: deploy
+  script:
+    - apk update && apk add rsync openssh curl
+    # Prepare SSH settings
+    - mkdir -p ~/.ssh && (umask  077 ; echo "${DEPLOY_KEY_PRIVATE}" | base64 -d > ~/.ssh/id_rsa)
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    # Prepare files for transfer
+    - mkdir production_dir
+    - cp docker-compose.server.yml production_dir/docker-compose.yml
+    - echo "API_RELEASE_IMAGE=${API_RELEASE_IMAGE}" >> production_dir/.env
+    - echo "WEBAPP_RELEASE_IMAGE=${WEBAPP_RELEASE_IMAGE}" >> production_dir/.env
+    # Transfer to server
+    - rsync -r production_dir "${REMOTE_HOST}:./"
+    # Run commands on the server
+    - ssh ${REMOTE_HOST} /bin/bash
+      "
+      echo 'Starting..';
+      cd ~/production_dir;
+      docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY;
+      docker-compose pull;
+      docker-compose up -d;
+      "
+  only:
+    - production
