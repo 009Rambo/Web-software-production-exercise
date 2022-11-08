@@ -1,7 +1,9 @@
 variables:
   REMOTE_HOST: deploy@172.16.7.123
   API_IMAGE: ${CI_REGISTRY_IMAGE}/api
+  API_RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}/api:release
   WEBAPP_IMAGE: ${CI_REGISTRY_IMAGE}/webapp
+  WEBAPP_RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}/webapp:release
 
 stages:
   - test
@@ -76,6 +78,23 @@ build_main:
     - docker push "${WEBAPP_IMAGE}"
   only: 
     - main
+
+
+build_production:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
+    # Build & push API
+    - docker build -f api/DockerfileServer -t "${API_RELEASE_IMAGE}" .
+    - docker push "${API_RELEASE_IMAGE}"
+    # Build & push Webapp
+    - docker build -f webapp/DockerfileServer -t "${WEBAPP_RELEASE_IMAGE}" .
+    - docker push "${WEBAPP_RELEASE_IMAGE}"
+  only:
+    - production
 
 deploy:
   image: alpine:latest
