@@ -27,7 +27,7 @@ test:
   except:
     - main
 
-    
+
 test_main:
   image: node:latest
   stage: test
@@ -47,7 +47,21 @@ test_main:
     - main
 
 
+
 build:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  script:
+    # Build API
+    - docker build -f api/DockerfileServer -t "${API_IMAGE}" .
+    # Build Webapp
+    - docker build -f webapp/DockerfileServer -t "${WEBAPP_IMAGE}" .
+  except:
+    - main
+    
+build_main:
   image: docker:latest
   stage: build
   services:
@@ -60,6 +74,8 @@ build:
     # Build & push Webapp
     - docker build -f webapp/DockerfileServer -t "${WEBAPP_IMAGE}" .
     - docker push "${WEBAPP_IMAGE}"
+  only: 
+    - main
 
 deploy:
   image: alpine:latest
