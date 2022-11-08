@@ -47,7 +47,7 @@ test_main:
     - npm install && npm test
   only: 
     - main
-
+    - production
 
 
 build:
@@ -62,6 +62,7 @@ build:
     - docker build -f webapp/DockerfileServer -t "${WEBAPP_IMAGE}" .
   except:
     - main
+    - production
     
 build_main:
   image: docker:latest
@@ -133,20 +134,20 @@ deploy_production:
     - mkdir -p ~/.ssh && (umask  077 ; echo "${DEPLOY_KEY_PRIVATE}" | base64 -d > ~/.ssh/id_rsa)
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
     # Prepare files for transfer
-    - mkdir remote_dir
-    - cp docker-compose.server.yml remote_dir/docker-compose.yml
-    - echo "API_IMAGE=${API_IMAGE}" >> remote_dir/.env
-    - echo "WEBAPP_IMAGE=${WEBAPP_IMAGE}" >> remote_dir/.env
+    - mkdir production_dir
+    - cp docker-compose.server.yml production_dir/docker-compose.yml
+    - echo "API_RELEASE_IMAGE=${API_RELEASE_IMAGE}" >> production_dir/.env
+    - echo "WEBAPP_RELEASE_IMAGE=${WEBAPP_RELEASE_IMAGE}" >> production_dir/.env
     # Transfer to server
-    - rsync -r remote_dir "${REMOTE_HOST}:./"
+    - rsync -r production_dir "${REMOTE_HOST}:./"
     # Run commands on the server
-    - ssh ${REMOTE_HOST} /bin/bash 
-            "
-            echo 'Starting..';
-            cd ~/remote_dir;
-            docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY;
-            docker-compose pull;
-            docker-compose up -d;
-            "
+    - ssh ${REMOTE_HOST} /bin/bash
+      "
+      echo 'Starting..';
+      cd ~/production_dir;
+      docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY;
+      docker-compose pull;
+      docker-compose up -d;
+      "
   only:
     - production
