@@ -135,7 +135,7 @@ deploy_production:
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
     # Prepare files for transfer
     - mkdir production_dir
-    - cp docker-compose.server.yml production_dir/docker-compose.yml
+    - cp docker-compose.production.yml production_dir/docker-compose.yml
     - echo "API_RELEASE_IMAGE=${API_RELEASE_IMAGE}" >> production_dir/.env
     - echo "WEBAPP_RELEASE_IMAGE=${WEBAPP_RELEASE_IMAGE}" >> production_dir/.env
     # Transfer to server
